@@ -4,107 +4,33 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Search, MapPin, Star, Heart, MessageCircle, CheckCircle, Clock } from "lucide-react"
+import { createClient } from "@/lib/supabase/server"
 
-const models = [
-  {
-    id: 1,
-    name: "Sofia Martinez",
-    age: 24,
-    location: "São Paulo, SP",
-    price: "R$ 300/hora",
-    rating: 4.9,
-    reviews: 127,
-    online: true,
-    verified: true,
-    vip: true,
-    image: "/beautiful-latina-model-professional-photo.jpg",
-    views: "12.5k",
-    lastSeen: "Online agora",
-    specialties: ["Ensaios", "Fashion", "Eventos"],
-  },
-  {
-    id: 2,
-    name: "Isabella Costa",
-    age: 22,
-    location: "Rio de Janeiro, RJ",
-    price: "R$ 250/hora",
-    rating: 4.8,
-    reviews: 89,
-    online: true,
-    verified: true,
-    vip: false,
-    image: "/brunette-model-professional-portrait.jpg",
-    views: "8.3k",
-    lastSeen: "Online agora",
-    specialties: ["Comercial", "Editorial"],
-  },
-  {
-    id: 3,
-    name: "Camila Oliveira",
-    age: 26,
-    location: "Belo Horizonte, MG",
-    price: "R$ 350/hora",
-    rating: 5.0,
-    reviews: 215,
-    online: false,
-    verified: true,
-    vip: true,
-    image: "/blonde-model-glamour-photo.jpg",
-    views: "15.7k",
-    lastSeen: "há 2 horas",
-    specialties: ["Luxo", "VIP", "Internacional"],
-  },
-  {
-    id: 4,
-    name: "Ana Silva",
-    age: 23,
-    location: "Curitiba, PR",
-    price: "R$ 280/hora",
-    rating: 4.7,
-    reviews: 96,
-    online: true,
-    verified: true,
-    vip: false,
-    image: "/redhead-model-elegant-photo.jpg",
-    views: "9.2k",
-    lastSeen: "Online agora",
-    specialties: ["Fitness", "Moda Praia"],
-  },
-  {
-    id: 5,
-    name: "Julia Santos",
-    age: 25,
-    location: "Brasília, DF",
-    price: "R$ 320/hora",
-    rating: 4.9,
-    reviews: 143,
-    online: true,
-    verified: true,
-    vip: true,
-    image: "/dark-hair-model-studio-portrait.jpg",
-    views: "11.8k",
-    lastSeen: "Online agora",
-    specialties: ["Alta Costura", "Campanhas"],
-  },
-  {
-    id: 6,
-    name: "Beatriz Ferreira",
-    age: 21,
-    location: "Porto Alegre, RS",
-    price: "R$ 240/hora",
-    rating: 4.6,
-    reviews: 67,
-    online: false,
-    verified: true,
-    vip: false,
-    image: "/young-model-natural-beauty.jpg",
-    views: "6.4k",
-    lastSeen: "há 5 horas",
-    specialties: ["Casual", "Lifestyle"],
-  },
-]
+export default async function HomePage() {
+  const supabase = await createClient()
 
-export default function HomePage() {
+  const { data: models, error } = await supabase
+    .from("models")
+    .select(`
+      *,
+      model_images(image_url, is_primary)
+    `)
+    .order("rating", { ascending: false })
+    .limit(6)
+
+  if (error) {
+    console.error("[v0] Error fetching models:", error)
+  }
+
+  const processedModels =
+    models?.map((model) => ({
+      ...model,
+      primaryImage:
+        model.model_images?.find((img: any) => img.is_primary)?.image_url ||
+        model.model_images?.[0]?.image_url ||
+        "/placeholder.svg?height=500&width=350",
+    })) || []
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
@@ -250,116 +176,121 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {models.map((model) => (
-              <Link href={`/model/${model.id}`} key={model.id}>
-                <Card className="group overflow-hidden bg-white/5 border-white/10 hover:border-rose-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/20 cursor-pointer">
-                  <div className="relative aspect-[3/4] overflow-hidden">
-                    <img
-                      src={model.image || "/placeholder.svg"}
-                      alt={model.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
+            {processedModels.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-400 text-lg">Nenhuma modelo disponível no momento.</p>
+                <p className="text-gray-500 mt-2">Por favor, volte mais tarde!</p>
+              </div>
+            ) : (
+              processedModels.map((model) => (
+                <Link href={`/model/${model.id}`} key={model.id}>
+                  <Card className="group overflow-hidden bg-white/5 border-white/10 hover:border-rose-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-rose-500/20 cursor-pointer">
+                    <div className="relative aspect-[3/4] overflow-hidden">
+                      <img
+                        src={model.primaryImage || "/placeholder.svg"}
+                        alt={model.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
 
-                    {/* Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
 
-                    {/* Top Badges */}
-                    <div className="absolute top-3 left-3 flex gap-2">
-                      {model.online && (
-                        <Badge className="bg-green-500 text-white border-0">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Online
-                        </Badge>
-                      )}
-                      {model.verified && (
-                        <Badge className="bg-blue-500 text-white border-0">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Verificada
-                        </Badge>
-                      )}
-                      {model.vip && (
-                        <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-                          👑 VIP
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Favorite Button */}
-                    <button className="absolute top-3 right-3 p-2 bg-black/50 rounded-full hover:bg-rose-500 transition-colors">
-                      <Heart className="w-5 h-5 text-white" />
-                    </button>
-
-                    {/* Bottom Info */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h3 className="text-xl font-bold text-white mb-1">
-                        {model.name}, {model.age}
-                      </h3>
-
-                      <div className="flex items-center gap-2 text-sm text-gray-300 mb-3">
-                        <MapPin className="w-4 h-4" />
-                        {model.location}
-                      </div>
-
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
-                          <span className="text-white font-semibold">{model.rating}</span>
-                          <span className="text-gray-400 text-sm">({model.reviews})</span>
-                        </div>
-                        <div className="text-gray-400 text-sm">{model.views} views</div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {model.specialties.map((specialty) => (
-                          <Badge
-                            key={specialty}
-                            variant="secondary"
-                            className="text-xs bg-white/10 text-white border-0"
-                          >
-                            {specialty}
+                      <div className="absolute top-3 left-3 flex gap-2">
+                        {model.online && (
+                          <Badge className="bg-green-500 text-white border-0">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Online
                           </Badge>
-                        ))}
+                        )}
+                        {model.verified && (
+                          <Badge className="bg-blue-500 text-white border-0">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Verificada
+                          </Badge>
+                        )}
+                        {model.vip && (
+                          <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
+                            👑 VIP
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-2xl font-bold bg-gradient-to-r from-rose-400 to-pink-400 bg-clip-text text-transparent">
-                            {model.price}
-                          </div>
-                          <div className="text-xs text-gray-400">{model.lastSeen}</div>
+                      <button className="absolute top-3 right-3 p-2 bg-black/50 rounded-full hover:bg-rose-500 transition-colors">
+                        <Heart className="w-5 h-5 text-white" />
+                      </button>
+
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <h3 className="text-xl font-bold text-white mb-1">
+                          {model.name}, {model.age}
+                        </h3>
+
+                        <div className="flex items-center gap-2 text-sm text-gray-300 mb-3">
+                          <MapPin className="w-4 h-4" />
+                          {model.location}
                         </div>
 
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            size="sm"
-                            className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700"
-                          >
-                            Ver Perfil
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-white/20 text-white hover:bg-white/10 bg-transparent"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                          </Button>
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-1">
+                            <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                            <span className="text-white font-semibold">{model.rating}</span>
+                            <span className="text-gray-400 text-sm">({model.total_reviews})</span>
+                          </div>
+                          <div className="text-gray-400 text-sm">{(model.total_views / 1000).toFixed(1)}k views</div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {model.specialties?.slice(0, 3).map((specialty: string) => (
+                            <Badge
+                              key={specialty}
+                              variant="secondary"
+                              className="text-xs bg-white/10 text-white border-0"
+                            >
+                              {specialty}
+                            </Badge>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-2xl font-bold bg-gradient-to-r from-rose-400 to-pink-400 bg-clip-text text-transparent">
+                              R$ {model.price_per_hour}/hora
+                            </div>
+                            <div className="text-xs text-gray-400">{model.online ? "Online agora" : "Offline"}</div>
+                          </div>
+
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700"
+                            >
+                              Ver Perfil
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-white/20 text-white hover:bg-white/10 bg-transparent"
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
+                  </Card>
+                </Link>
+              ))
+            )}
           </div>
 
           <div className="text-center mt-12">
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
-            >
-              Carregar Mais Modelos
-            </Button>
+            <Link href="/models">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
+              >
+                Carregar Mais Modelos
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
